@@ -1,0 +1,7 @@
+./*/Makefile
+./*/out
+./*/.qtcreator
+./*/build
+bin
+
+
