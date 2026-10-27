@@ -1,7 +1,17 @@
-./*/Makefile
-./*/out
-./*/.qtcreator
-./*/build
 bin
+BGMedia
+CheckUser
+DicEngine
+Dictionary2
+dtest
+include
+lib
+s60dict
 
 
+3.0改进地方.txt
+bug.txt
+DicEngine.rar
+package-lock.json
+模糊查词算法.txt
+用户建议.txt
