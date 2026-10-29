@@ -283,11 +283,17 @@
         <item>
          <widget class="QStackedWidget" name="indexStack">
           <property name="currentIndex">
-           <number>1</number>
+           <number>0</number>
           </property>
-          <widget class="QListWidget" name="wordListWidget">
+          <widget class="QListView" name="wordListWidget">
            <property name="styleSheet">
             <string>background-color: #e9e9dc;</string>
+           </property>
+           <property name="editTriggers">
+            <set>QAbstractItemView::NoEditTriggers</set>
+           </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::SingleSelection</enum>
            </property>
           </widget>
           <widget class="QListView" name="phoneticListView">

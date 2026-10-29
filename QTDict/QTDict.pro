@@ -11,15 +11,23 @@ SOURCES += \
     mainwindow.cpp \
     phonetickeyboard.cpp \
     phoneticlineedit.cpp \
+    DictEngine/dictzipreader.cpp \
     DictEngine/phoneticsearchengine.cpp \
-    DictEngine/phoneticlistmodel.cpp
+    DictEngine/phoneticlistmodel.cpp \
+    DictEngine/wordsearchengine.cpp \
+    DictEngine/worddefinitionengine.cpp \
+    DictEngine/wordlistmodel.cpp
 
 HEADERS += \
     mainwindow.h \
     phonetickeyboard.h \
     phoneticlineedit.h \
+    DictEngine/dictzipreader.h \
     DictEngine/phoneticsearchengine.h \
-    DictEngine/phoneticlistmodel.h
+    DictEngine/phoneticlistmodel.h \
+    DictEngine/wordsearchengine.h \
+    DictEngine/worddefinitionengine.h \
+    DictEngine/wordlistmodel.h
 
 FORMS += \
     mainwindow.ui

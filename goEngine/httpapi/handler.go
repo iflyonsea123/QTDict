@@ -7,14 +7,16 @@ import (
 	"strings"
 
 	"phoneticengine/phonetic"
+	"phoneticengine/word"
 )
 
 type Handler struct {
-	index          *phonetic.Index
+	phoneticIndex  *phonetic.Index
+	wordIndex      *word.Index
 	allowedOrigins map[string]struct{}
 }
 
-func NewHandler(index *phonetic.Index, allowedOrigins []string) *Handler {
+func NewHandler(phoneticIndex *phonetic.Index, wordIndex *word.Index, allowedOrigins []string) *Handler {
 	origins := make(map[string]struct{}, len(allowedOrigins))
 	for _, origin := range allowedOrigins {
 		origin = strings.TrimSpace(origin)
@@ -22,7 +24,11 @@ func NewHandler(index *phonetic.Index, allowedOrigins []string) *Handler {
 			origins[origin] = struct{}{}
 		}
 	}
-	return &Handler{index: index, allowedOrigins: origins}
+	return &Handler{
+		phoneticIndex:  phoneticIndex,
+		wordIndex:      wordIndex,
+		allowedOrigins: origins,
+	}
 }
 
 func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -39,19 +45,39 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 
 	switch {
 	case request.URL.Path == "/api/phonetic/count":
+		if handler.phoneticIndex == nil {
+			writeError(writer, http.StatusNotFound, "phonetic index not loaded")
+			return
+		}
 		writeJSON(writer, http.StatusOK, struct {
 			Count int `json:"count"`
-		}{Count: handler.index.Count()})
+		}{Count: handler.phoneticIndex.Count()})
 	case request.URL.Path == "/api/phonetic/search":
-		handler.search(writer, request)
+		handler.searchPhonetic(writer, request)
 	case strings.HasPrefix(request.URL.Path, "/api/phonetic/entries/"):
-		handler.entry(writer, request.URL.Path)
+		handler.phoneticEntry(writer, request.URL.Path)
+	case request.URL.Path == "/api/word/count":
+		if handler.wordIndex == nil {
+			writeError(writer, http.StatusNotFound, "word index not loaded")
+			return
+		}
+		writeJSON(writer, http.StatusOK, struct {
+			Count int `json:"count"`
+		}{Count: handler.wordIndex.Count()})
+	case request.URL.Path == "/api/word/search":
+		handler.searchWord(writer, request)
+	case strings.HasPrefix(request.URL.Path, "/api/word/entries/"):
+		handler.wordEntry(writer, request.URL.Path)
 	default:
 		writeError(writer, http.StatusNotFound, "endpoint not found")
 	}
 }
 
-func (handler *Handler) search(writer http.ResponseWriter, request *http.Request) {
+func (handler *Handler) searchPhonetic(writer http.ResponseWriter, request *http.Request) {
+	if handler.phoneticIndex == nil {
+		writeError(writer, http.StatusNotFound, "phonetic index not loaded")
+		return
+	}
 	query := request.URL.Query().Get("q")
 	if query == "" {
 		writeError(writer, http.StatusBadRequest, "query parameter q is required")
@@ -83,7 +109,7 @@ func (handler *Handler) search(writer http.ResponseWriter, request *http.Request
 		includeSyllableMarks = parsed
 	}
 
-	result, ok := handler.index.Search(query, includeSyllableMarks)
+	result, ok := handler.phoneticIndex.Search(query, includeSyllableMarks)
 	if !ok {
 		writeError(writer, http.StatusNotFound, "no phonetic entries are available")
 		return
@@ -91,7 +117,11 @@ func (handler *Handler) search(writer http.ResponseWriter, request *http.Request
 	writeJSON(writer, http.StatusOK, result)
 }
 
-func (handler *Handler) entry(writer http.ResponseWriter, path string) {
+func (handler *Handler) phoneticEntry(writer http.ResponseWriter, path string) {
+	if handler.phoneticIndex == nil {
+		writeError(writer, http.StatusNotFound, "phonetic index not loaded")
+		return
+	}
 	rawIndex := strings.TrimPrefix(path, "/api/phonetic/entries/")
 	if rawIndex == "" || strings.Contains(rawIndex, "/") {
 		writeError(writer, http.StatusBadRequest, "entry index must be a positive integer")
@@ -102,9 +132,61 @@ func (handler *Handler) entry(writer http.ResponseWriter, path string) {
 		writeError(writer, http.StatusBadRequest, "entry index must be a positive integer")
 		return
 	}
-	entry, ok := handler.index.EntryAt(entryNumber)
+	entry, ok := handler.phoneticIndex.EntryAt(entryNumber)
 	if !ok {
 		writeError(writer, http.StatusNotFound, "phonetic entry not found")
+		return
+	}
+	writeJSON(writer, http.StatusOK, entry)
+}
+
+func (handler *Handler) searchWord(writer http.ResponseWriter, request *http.Request) {
+	if handler.wordIndex == nil {
+		writeError(writer, http.StatusNotFound, "word index not loaded")
+		return
+	}
+	query := request.URL.Query().Get("q")
+	if query == "" {
+		writeError(writer, http.StatusBadRequest, "query parameter q is required")
+		return
+	}
+	if len(query) > 256 {
+		writeError(writer, http.StatusBadRequest, "query parameter q is too long")
+		return
+	}
+	for i := 0; i < len(query); i++ {
+		if query[i] > 0x7f {
+			writeError(writer, http.StatusBadRequest, "query must use ASCII characters")
+			return
+		}
+	}
+
+	result, ok := handler.wordIndex.Search(query)
+	if !ok {
+		writeError(writer, http.StatusNotFound, "no word entries are available")
+		return
+	}
+	writeJSON(writer, http.StatusOK, result)
+}
+
+func (handler *Handler) wordEntry(writer http.ResponseWriter, path string) {
+	if handler.wordIndex == nil {
+		writeError(writer, http.StatusNotFound, "word index not loaded")
+		return
+	}
+	rawIndex := strings.TrimPrefix(path, "/api/word/entries/")
+	if rawIndex == "" || strings.Contains(rawIndex, "/") {
+		writeError(writer, http.StatusBadRequest, "entry index must be a positive integer")
+		return
+	}
+	entryNumber, err := strconv.Atoi(rawIndex)
+	if err != nil || entryNumber < 1 {
+		writeError(writer, http.StatusBadRequest, "entry index must be a positive integer")
+		return
+	}
+	entry, ok := handler.wordIndex.EntryAt(entryNumber)
+	if !ok {
+		writeError(writer, http.StatusNotFound, "word entry not found")
 		return
 	}
 	writeJSON(writer, http.StatusOK, entry)

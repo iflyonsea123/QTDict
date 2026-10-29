@@ -141,13 +141,23 @@ input:focus-visible {
   text-decoration: none;
 }
 
-a.nav-link {
+a.nav-link,
+button.nav-link {
   transition:
     background 160ms ease,
     color 160ms ease;
 }
 
-a.nav-link:hover {
+button.nav-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+a.nav-link:hover,
+button.nav-link:hover {
   background: var(--surface-soft);
   color: var(--text);
 }
@@ -399,19 +409,30 @@ a.nav-link:hover {
   color: #8c9bb1;
 }
 
-.phonetic-input {
+.phonetic-input,
+.word-input {
   width: 100%;
   min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
   color: #273854;
-  font-family: "Okeyen Phonetic", "Cascadia Mono", Consolas, monospace;
-  font-size: 18px;
-  letter-spacing: 0.035em;
 }
 
-.phonetic-input::placeholder {
+.phonetic-input {
+  font-family: "Segoe UI", "Lucida Sans Unicode", "Arial Unicode MS", -apple-system, sans-serif;
+  font-size: 19px;
+  letter-spacing: 0.04em;
+}
+
+.word-input {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.phonetic-input::placeholder,
+.word-input::placeholder {
   color: #abb4c2;
   font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
   font-size: 12px;
@@ -516,8 +537,9 @@ a.nav-link:hover {
   box-shadow: 0 1px 1px rgb(19 33 56 / 3%);
   color: #43536b;
   cursor: pointer;
-  font-family: "Okeyen Phonetic", "Cascadia Mono", Consolas, monospace;
-  font-size: 12px;
+  font-family: "Segoe UI", "Lucida Sans Unicode", "Arial Unicode MS", -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
   transition:
     transform 120ms ease,
     border-color 120ms ease,
@@ -637,10 +659,10 @@ a.nav-link:hover {
 .entry-pronunciation {
   margin: 7px 0 0;
   color: #2b3c58;
-  font-family: "Okeyen Phonetic", "Cascadia Mono", Consolas, monospace;
-  font-size: 28px;
+  font-family: "Segoe UI", "Lucida Sans Unicode", "Arial Unicode MS", -apple-system, sans-serif;
+  font-size: 30px;
   line-height: 1.3;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   overflow-wrap: anywhere;
 }
 
@@ -651,6 +673,50 @@ a.nav-link:hover {
   color: var(--muted);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+}
+
+.entry-word-headline {
+  margin: 6px 0 0;
+  color: #1f2d3d;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.definition-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid #eef0f4;
+}
+
+.definition-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.definition-block pre {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #e8edf5;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #24344d;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.definition-empty {
+  color: var(--faint);
+  font-size: 11px;
+  font-style: italic;
+  padding: 2px 0;
 }
 
 .entry-word {

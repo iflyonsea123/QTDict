@@ -1,0 +1,15 @@
+{
+  "server": {
+    "addr": ":8080",
+    "allowed_origins": [
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ]
+  },
+  "data": {
+    "phonetic_path": "../bin/go/IPhonetic.dat",
+    "word_index_path": "../bin/go/iword.dat",
+    "simple_meaning_path": "../bin/go/data1.dat",
+    "detail_meaning_path": "../bin/go/data2.dat"
+  }
+}

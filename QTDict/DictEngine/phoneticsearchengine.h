@@ -34,8 +34,6 @@ private:
         int wordLength;
     };
 
-    bool inflateDictZip(const QByteArray &compressed, QByteArray *uncompressed,
-                        QString *errorMessage) const;
     int comparePronunciations(const QByteArray &left, const Entry &right,
                               bool includeSyllableMarks) const;
     int comparePronunciations(const QByteArray &left, const QByteArray &right,

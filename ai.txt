@@ -1,0 +1,18 @@
+单词查询需要另一组数据文件。 
+旧版初始化不只打开索引，还要求 iword.dat.dz、data1.dat.dz 和 data2.dat.dz；这分别用于词头索引、简明词义和详细释义，
+可见 CDicEngine::Initialize 和 CDictionary::Initialize。这些文件在 bin/data/ 及其 all25、all25demo 子目录中有不同版本；
+而 bin/go/ 目前只有音标索引。实施前需要选定与现有音标词典相对应的一套词典文件，避免混用版本。
+
+
+单词列表已经可以显示，没有问题了，接着实现下面的功能：
+修改单词选择的逻辑，wordListWidget中选择了某个单词，读取all25下面的data1.dat.dz 和 data2.dat.dz词典文件，将简明词义和详细释义信息显示出来。简明词义和详细释义信息不用做处理，是什么就显示什么。
+
+
+
+就按你说的采用方案2，你先在WordDefinitionEngine和WordSearchEngine中提供exportUncompressed函数，我运行一次把它们先导出来。
+
+你先在QT项目提供一段测试代码解压iword.dat.dz、data1.dat.dz 和 data2.dat.dz；并保存到C:\learning\okeyen\PC\okwordoldcode\word\project25\bin\go中。
+
+web端音标显示没有用字体，所以显示是不对的。
+我拷贝了一份旧的iOS源码过来，iOS上也没有使用字体，而是将音标文字做了转换，见“iOS\OKWord\DictManager\WordManager.cpp”下面的NormalizePhoneticBuffer这个函数。Web端项目也打算将音标做个转换，可以先改“音标检索”这个模块，包括音标键盘，和编辑框音标的显示，查询音标的时候显示的是转换后的音标文字，需要反向转换，参考函数ReNormalizePhoneticBuffer。
+你先看下有没有什么问题？
