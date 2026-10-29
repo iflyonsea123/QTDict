@@ -16,3 +16,13 @@
 web端音标显示没有用字体，所以显示是不对的。
 我拷贝了一份旧的iOS源码过来，iOS上也没有使用字体，而是将音标文字做了转换，见“iOS\OKWord\DictManager\WordManager.cpp”下面的NormalizePhoneticBuffer这个函数。Web端项目也打算将音标做个转换，可以先改“音标检索”这个模块，包括音标键盘，和编辑框音标的显示，查询音标的时候显示的是转换后的音标文字，需要反向转换，参考函数ReNormalizePhoneticBuffer。
 你先看下有没有什么问题？
+
+现在我想要修改web端的“单词检索”这个模块：
+目前简明词义和详细释义都是显示的原始信息，现在需要将原始信息解析，然后生成UI友好内容。你也可以先参考下iOS端的代码：
+主要是通过CDictManager::GetWordScript将词典信息转换为html。
+解析信息的函数主要是CDictManager::GetNextDetail这个函数。
+注意解析到音标的时候要转换音标文本（iOS里面可能没在生成html的时候转换）。
+有些音标，单词会生成href链接，你看看好不好生成对应href链接。
+里面的html界面只是给你参考，你结合当前web项目，看看怎么输出单词信息UI。
+
+先评估下看看有没有疑问或好的建议。

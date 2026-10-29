@@ -19,6 +19,7 @@ import {
   searchWord,
 } from "./api"
 import type { PhoneticEntry, WordEntry } from "./api"
+import { DefinitionView } from "./DefinitionView"
 import { mapPhysicalKey, phoneticKeyboardRows } from "./phoneticKeys"
 import { normalizePhonetic, reNormalizePhonetic } from "./phoneticNormalize"
 
@@ -219,6 +220,64 @@ export default function App() {
     }
   }
 
+  // Handle clicking a phonetic badge from word definition: switch to phonetic tab & search
+  function handleSelectPhonetic(pron: string) {
+    setMode("phonetic")
+    setPhoneticQuery(pron)
+
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
+    setPhoneticState("loading")
+    setPhoneticError("")
+
+    const internalQuery = reNormalizePhonetic(pron)
+    searchPhonetic(internalQuery, controller.signal)
+      .then((result) => {
+        const normalizedPron = normalizePhonetic(result.pronunciation)
+        setSelectedPhonetic({
+          index: result.index,
+          pronunciation: normalizedPron,
+          word: result.word,
+        })
+        setPhoneticExact(result.exact)
+        setPhoneticState("ready")
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setPhoneticError(error instanceof Error ? error.message : "音标搜索失败。")
+        setPhoneticState("error")
+      })
+  }
+
+  // Handle clicking a word link tag (synonym, antonym, or related word): search word directly
+  function handleSelectWord(wordToSearch: string) {
+    setWordQuery(wordToSearch)
+
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
+    setWordState("loading")
+    setWordError("")
+
+    searchWord(wordToSearch, controller.signal)
+      .then((result) => {
+        setSelectedWord({
+          index: result.index,
+          word: result.word,
+          simple_meaning: result.simple_meaning,
+          detail_meaning: result.detail_meaning,
+        })
+        setWordExact(result.exact)
+        setWordState("ready")
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        setWordError(error instanceof Error ? error.message : "单词搜索失败。")
+        setWordState("error")
+      })
+  }
+
   const isConnected = wordCount !== null || phoneticCount !== null
 
   return (
@@ -388,23 +447,19 @@ export default function App() {
                     </div>
 
                     <div className="definition-section">
-                      <div className="definition-block">
-                        <span className="field-label">简明词义</span>
-                        {selectedWord.simple_meaning ? (
-                          <pre>{selectedWord.simple_meaning}</pre>
-                        ) : (
-                          <p className="definition-empty">无简明词义内容</p>
-                        )}
-                      </div>
+                      <DefinitionView
+                        title="简明词义"
+                        rawText={selectedWord.simple_meaning}
+                        onSelectPhonetic={handleSelectPhonetic}
+                        onSelectWord={handleSelectWord}
+                      />
 
-                      <div className="definition-block">
-                        <span className="field-label">详细释义</span>
-                        {selectedWord.detail_meaning ? (
-                          <pre>{selectedWord.detail_meaning}</pre>
-                        ) : (
-                          <p className="definition-empty">无详细释义内容</p>
-                        )}
-                      </div>
+                      <DefinitionView
+                        title="详细释义"
+                        rawText={selectedWord.detail_meaning}
+                        onSelectPhonetic={handleSelectPhonetic}
+                        onSelectWord={handleSelectWord}
+                      />
                     </div>
 
                     <div className="entry-navigation">

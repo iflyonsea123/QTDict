@@ -63,3 +63,173 @@ go项目最终会部署在linux上，你觉得上面哪种方案效率高？哪�
 2. **需要复杂的全文检索或关系关联**：例如需要做复杂的模糊组合查询、按词频/难度多维度筛选等（不过如果是纯前缀匹配/词头查询，方案 2 已经远快于 MySQL 的 `LIKE`）。
 
 如果定位是一个**高性能、轻量级、稳定的只读词典查询 API**，方案 2 在效率、开销和运维简易度上都是最佳选择。
+
+
+
+
+
+
+
+Search for `GetNextDetail`
+
+Read , lines 700 to 795
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.cpp",
+  "view_range": [
+    700,
+    795
+  ]
+}
+
+Read , lines 790 to 870
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.cpp",
+  "view_range": [
+    790,
+    870
+  ]
+}
+
+Search for `DETAIL_CHMEANING`
+
+Read , lines 20 to 50
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.h",
+  "view_range": [
+    20,
+    50
+  ]
+}
+
+Read , lines 435 to 530
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.cpp",
+  "view_range": [
+    435,
+    530
+  ]
+}
+
+Read , lines 530 to 660
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.cpp",
+  "view_range": [
+    530,
+    660
+  ]
+}
+
+Search for `FormPhoneticHtml`
+
+Read , lines 1850 to 1920
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\DictManager\\DictManager.cpp",
+  "view_range": [
+    1850,
+    1920
+  ]
+}
+
+Search for `s_PhoneticHtml|s_WordHref`
+
+Search for `shouldStartLoadWithRequest`
+
+Read , lines 1779 to 1830
+Completed with input: {
+  "path": "c:\\learning\\okeyen\\PC\\okwordoldcode\\word\\project25\\iOS\\OKWord\\Classes\\SearchWordViewController.mm",
+  "view_range": [
+    1779,
+    1830
+  ]
+}
+
+对 iOS 端源码（`GetNextDetail`、`GetWordScript`）及词典数据的标记规则进行了深入分析，针对 Web 端单词检索的解析与 UI 渲染方案，评估与建议如下：
+
+---
+
+### 一、词典原始标记规则梳理（语法解析标准）
+
+通过分析 `CDictManager::GetNextDetail`，原始数据使用的是一套**单字符状态机控制符**：
+
+| 控制符 | 枚举类型 | 含义说明 | 实例示范 |
+| :---: | :--- | :--- | :--- |
+| `@` | `DETAIL_PHONETIC` | 音标（用中括号 `[...]` 包裹，可能含多个） | `@[5Apl]` 或 `@[5Apl,-pl]` |
+| `$` | `DETAIL_PROPERTY` | 词性（Part of Speech） | `$n.`、`$vt.`、`$adj.` |
+| `^` | `DETAIL_CHMEANING` | 中文释义 | `^苹果, 似苹果的果实` |
+| `*` | `DETAIL_ENMEANING` | 英文详细释义 | `*round fruit with firm juicy flesh...` |
+| `\t` | `DETAIL_ENSENT` | 英文例句（可能含 `#` 标记关键词） | `\tHe was eating an #apple#.` |
+| `\|` | `DETAIL_CHSENT` | 中文例句翻译（紧随英文例句） | `\|他正在吃一个苹果。` |
+| `<0` | `DETAIL_ONYM` | 同义词列表 | `<0#fruit#pip` |
+| `<1` | `DETAIL_ANTONYM` | 反义词列表 | `<1#...` |
+| `&` | `DETAIL_WORD` | 派生词/短语词头 | `&apple pie` |
+| `<` | `DETAIL_UNNORMALMODE` | 不规则形态（复数、过去式等） | `<pl. apples>` |
+| `#` | (文本内强调) | 例句中的关键词高亮标记 | `#apple#` $\rightarrow$ 高亮 `apple` |
+
+---
+
+### 二、实现方案对比与建议
+
+#### 强烈建议：【结构化 AST 解析 + React 组件化渲染】（而非拼接 raw HTML）
+
+iOS 端旧代码是在 C++ 拼接 HTML 字符串交由 `UIWebView` 渲染。但对于现代 React/Vite 前端，**不推荐**用 `dangerouslySetInnerHTML` 渲染拼接的 HTML，原因如下：
+1. **交互闭环问题**：HTML 里的 `<a href="okeyen://searword:xxx">` 在 React 中很难进行路由状态控制，而 React 原生 `onClick={() => handleSearch(word)}` 能够非常自然地原地查词、计入搜索历史或回退。
+2. **UI 表现力**：纯 HTML 很难做细致的 Tailwind/CSS 响应式卡片排版。而结构化数据可以让每个元素拥有高颜值的 UI（如词性胶囊徽标、双语例句折叠、关键字高亮等）。
+
+#### 推荐的解析器数据模型：
+```ts
+export interface ParsedDefinition {
+  phonetics?: string[]          // 音标列表，已经过 normalizePhonetic 转为 Unicode IPA
+  inflections?: string          // 词形变化，如 "复数: apples"
+  sections: PropertySection[]   // 按词性分组的内容
+  synonyms?: string[]           // 同义词
+  antonyms?: string[]           // 反义词
+  relatedWords?: string[]       // 派生词 / 相关词
+}
+
+export interface PropertySection {
+  partOfSpeech: string          // 词性，如 "n.", "vt."
+  senses: WordSense[]           // 释义项列表（带 1. 2. 3. 序号）
+}
+
+export interface WordSense {
+  chinese: string               // 中文释义
+  english?: string              // 英文释义
+  examples?: ExampleSentence[]  // 例句
+}
+
+export interface ExampleSentence {
+  english: string               // 英文例句（支持 #word# 关键词加粗高亮）
+  chinese?: string              // 中文翻译
+}
+```
+
+---
+
+### 三、UI 与链接交互设计建议
+
+1. **音标与发音联动**：
+   - 解析出 `@` 里的音标后，调用之前写好的 `normalizePhonetic` 转换为 Unicode 标准音标 `[ˈæpl]`；
+   - 音标渲染为**可交互的音标胶囊卡片**：点击该音标胶囊，前端自动切换到 **“音标索引”** 模块并查询该音标。
+2. **词性与释义分层展示**：
+   - 词性（`n.`、`v.`、`adj.`）用轻量彩色标签（Tag/Badge）展示，使多词性单词一目了然；
+   - 义项按 `1.`, `2.`, `3.` 序号排版；
+   - 英文释义使用淡灰字体展示在中文释义下方。
+3. **英汉例句卡片**：
+   - 英文例句与中文例句成对出现，放在浅色圆角卡片中；
+   - 将英文中的 `#apple#` 自动剔除 `#` 并加粗显示为高亮主题词。
+4. **单词跳转超链接（查词穿透）**：
+   - **同义词/反义词/派生词**：展示为可点击的小标签，点击直接调用 `searchWord(term)` 原地搜索该词；
+   - 例句中如果有明确链接的词，也可点击查词。
+
+---
+
+### 四、请你确认的细节偏好
+
+1. **简明词义与详细释义的展示关系**：
+   - **方案 A（保持两个卡片）**：上边卡片展示解析后的“简明词义”（适合快速扫一眼），下边展示“详细释义”（展开例句与英英释义）。
+   - **方案 B（一体化整合）**：将详细释义作为主体展示（如果该词只有简明词义则展示简明词义，若两者都有则以详细释义为主）。
+   - *（建议先采用方案 A 或在同一个卡片内分两栏/上下两块展示，既有简明摘要，又有详细例句）*。
+2. **音标点击跳转行为**：
+   - 是否确认点击音标直接切换到左侧的“音标索引”并检索？
+
+如果以上解析逻辑和 UI 设计方向符合你的想法，请告知你的偏好，我即可开始编写解析器及 UI 组件！

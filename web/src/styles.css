@@ -687,34 +687,239 @@ button.nav-link:hover {
 .definition-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   padding: 18px 0;
   border-top: 1px solid #eef0f4;
 }
 
-.definition-block {
+.definition-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid #e8ecf4;
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+
+.definition-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.definition-phonetics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.phonetic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #d5e2fc;
+  border-radius: 8px;
+  background: #f0f5ff;
+  color: #2b56ca;
+  font-family: "Segoe UI", "Lucida Sans Unicode", "Arial Unicode MS", -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.phonetic-chip:hover {
+  transform: translateY(-1px);
+  border-color: #a8c4fa;
+  background: #e2edff;
+  box-shadow: 0 2px 6px rgb(59 110 234 / 14%);
+}
+
+.chip-arrow {
+  opacity: 0.5;
+  transition: transform 120ms ease;
+}
+
+.phonetic-chip:hover .chip-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.inflections-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.property-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.property-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pos-badge-wrap {
+  display: flex;
+}
+
+.pos-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #e9effd;
+  color: #2b56ca;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.senses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sense-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sense-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sense-index {
+  color: var(--faint);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.sense-chinese {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.sense-english {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sense-examples {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-top: 4px;
 }
 
-.definition-block pre {
+.example-item {
+  padding: 8px 12px;
+  border-left: 3px solid #cbdcfc;
+  border-radius: 0 8px 8px 0;
+  background: #f4f7fc;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.example-en {
   margin: 0;
-  padding: 12px 14px;
+  color: #334155;
+}
+
+.example-keyword {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.example-zh {
+  margin: 2px 0 0;
+  color: #64748b;
+}
+
+.word-tags-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.tags-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.word-link-tag {
+  padding: 2px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: white;
+  color: #2b56ca;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.word-link-tag:hover {
+  transform: translateY(-1px);
+  border-color: #b5cdfa;
+  background: #edf3ff;
+  color: #1d4ed8;
+}
+
+.definition-raw-fallback {
+  margin: 0;
+  padding: 10px 12px;
   border: 1px solid #e8edf5;
-  border-radius: 9px;
+  border-radius: 8px;
   background: #f8fafc;
   color: #24344d;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .definition-empty {
+  margin: 0;
   color: var(--faint);
-  font-size: 11px;
+  font-size: 12px;
   font-style: italic;
   padding: 2px 0;
 }
