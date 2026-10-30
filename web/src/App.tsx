@@ -17,8 +17,15 @@ import {
   getWordEntry,
   searchPhonetic,
   searchWord,
+  suggestWords,
+  suggestPhonetics,
 } from "./api"
-import type { PhoneticEntry, WordEntry } from "./api"
+import type {
+  PhoneticEntry,
+  WordEntry,
+  WordSuggestion,
+  PhoneticSuggestion,
+} from "./api"
 import { DefinitionView } from "./DefinitionView"
 import { mapPhysicalKey, phoneticKeyboardRows } from "./phoneticKeys"
 import { normalizePhonetic, reNormalizePhonetic } from "./phoneticNormalize"
@@ -41,6 +48,13 @@ export default function App() {
   const [wordState, setWordState] = useState<SearchState>("idle")
   const [wordError, setWordError] = useState("")
   const wordInputRef = useRef<HTMLInputElement>(null)
+  const wordContainerRef = useRef<HTMLDivElement>(null)
+
+  // Word Suggestions State
+  const [wordSuggestions, setWordSuggestions] = useState<WordSuggestion[]>([])
+  const [showWordSuggestions, setShowWordSuggestions] = useState(false)
+  const [activeWordSuggestIndex, setActiveWordSuggestIndex] = useState(-1)
+  const wordSuggestAbortRef = useRef<AbortController | null>(null)
 
   // Phonetic Mode State
   const [phoneticQuery, setPhoneticQuery] = useState("")
@@ -51,6 +65,13 @@ export default function App() {
   const [phoneticError, setPhoneticError] = useState("")
   const [keyboardOpen, setKeyboardOpen] = useState(true)
   const phoneticInputRef = useRef<HTMLInputElement>(null)
+  const phoneticContainerRef = useRef<HTMLDivElement>(null)
+
+  // Phonetic Suggestions State
+  const [phoneticSuggestions, setPhoneticSuggestions] = useState<PhoneticSuggestion[]>([])
+  const [showPhoneticSuggestions, setShowPhoneticSuggestions] = useState(false)
+  const [activePhoneticSuggestIndex, setActivePhoneticSuggestIndex] = useState(-1)
+  const phoneticSuggestAbortRef = useRef<AbortController | null>(null)
 
   const requestRef = useRef<AbortController | null>(null)
 
@@ -70,6 +91,87 @@ export default function App() {
   }, [])
 
   useEffect(() => () => requestRef.current?.abort(), [])
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleDocumentClick(event: MouseEvent) {
+      if (
+        wordContainerRef.current &&
+        !wordContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowWordSuggestions(false)
+      }
+      if (
+        phoneticContainerRef.current &&
+        !phoneticContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowPhoneticSuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleDocumentClick)
+    return () => document.removeEventListener("mousedown", handleDocumentClick)
+  }, [])
+
+  // Debounced Word Suggestions
+  useEffect(() => {
+    const trimmed = wordQuery.trim()
+    if (!trimmed) {
+      setWordSuggestions([])
+      setShowWordSuggestions(false)
+      setActiveWordSuggestIndex(-1)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      wordSuggestAbortRef.current?.abort()
+      const controller = new AbortController()
+      wordSuggestAbortRef.current = controller
+
+      suggestWords(trimmed, 8, controller.signal)
+        .then((items) => {
+          setWordSuggestions(items)
+          setShowWordSuggestions(items.length > 0)
+          setActiveWordSuggestIndex(-1)
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return
+          setWordSuggestions([])
+        })
+    }, 150)
+
+    return () => clearTimeout(timer)
+  }, [wordQuery])
+
+  // Debounced Phonetic Suggestions
+  useEffect(() => {
+    const trimmed = phoneticQuery.trim()
+    if (!trimmed) {
+      setPhoneticSuggestions([])
+      setShowPhoneticSuggestions(false)
+      setActivePhoneticSuggestIndex(-1)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      phoneticSuggestAbortRef.current?.abort()
+      const controller = new AbortController()
+      phoneticSuggestAbortRef.current = controller
+
+      const internalQuery = reNormalizePhonetic(trimmed)
+      suggestPhonetics(internalQuery, 8, controller.signal)
+        .then((items) => {
+          setPhoneticSuggestions(items)
+          setShowPhoneticSuggestions(items.length > 0)
+          setActivePhoneticSuggestIndex(-1)
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === "AbortError") return
+          setPhoneticSuggestions([])
+        })
+    }, 150)
+
+    return () => clearTimeout(timer)
+  }, [phoneticQuery])
 
   // Phonetic Virtual Keyboard Insertion
   function insertPhoneticKey(value: string) {
@@ -100,24 +202,24 @@ export default function App() {
     if (mapped) insertPhoneticKey(mapped)
   }
 
-  // Handle Word Search
-  async function handleWordSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const value = wordQuery.trim()
-    if (!value) {
+  // Execute Word Search
+  async function executeWordSearch(value: string) {
+    const trimmed = value.trim()
+    if (!trimmed) {
       setWordError("请输入要查询的单词。")
       setWordState("error")
       wordInputRef.current?.focus()
       return
     }
 
+    setShowWordSuggestions(false)
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
     setWordState("loading")
     setWordError("")
     try {
-      const result = await searchWord(value, controller.signal)
+      const result = await searchWord(trimmed, controller.signal)
       setSelectedWord({
         index: result.index,
         word: result.word,
@@ -133,24 +235,65 @@ export default function App() {
     }
   }
 
-  // Handle Phonetic Search
-  async function handlePhoneticSearch(event: FormEvent<HTMLFormElement>) {
+  function handleWordSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const value = phoneticQuery.trim()
-    if (!value) {
+    executeWordSearch(wordQuery)
+  }
+
+  function selectWordSuggestion(wordToSearch: string) {
+    setWordQuery(wordToSearch)
+    executeWordSearch(wordToSearch)
+  }
+
+  function handleWordKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (showWordSuggestions && wordSuggestions.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault()
+        setActiveWordSuggestIndex((prev) => (prev + 1) % wordSuggestions.length)
+        return
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault()
+        setActiveWordSuggestIndex((prev) =>
+          prev <= 0 ? wordSuggestions.length - 1 : prev - 1,
+        )
+        return
+      }
+      if (
+        event.key === "Enter" &&
+        activeWordSuggestIndex >= 0 &&
+        activeWordSuggestIndex < wordSuggestions.length
+      ) {
+        event.preventDefault()
+        const selected = wordSuggestions[activeWordSuggestIndex]
+        selectWordSuggestion(selected.word)
+        return
+      }
+      if (event.key === "Escape") {
+        setShowWordSuggestions(false)
+        return
+      }
+    }
+  }
+
+  // Execute Phonetic Search
+  async function executePhoneticSearch(value: string) {
+    const trimmed = value.trim()
+    if (!trimmed) {
       setPhoneticError("请输入或选择要查询的音标。")
       setPhoneticState("error")
       phoneticInputRef.current?.focus()
       return
     }
 
+    setShowPhoneticSuggestions(false)
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
     setPhoneticState("loading")
     setPhoneticError("")
     try {
-      const internalQuery = reNormalizePhonetic(value)
+      const internalQuery = reNormalizePhonetic(trimmed)
       const result = await searchPhonetic(internalQuery, controller.signal)
       const normalizedPron = normalizePhonetic(result.pronunciation)
       setSelectedPhonetic({
@@ -167,12 +310,56 @@ export default function App() {
     }
   }
 
+  function handlePhoneticSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    executePhoneticSearch(phoneticQuery)
+  }
+
+  function selectPhoneticSuggestion(item: PhoneticSuggestion) {
+    const normalized = normalizePhonetic(item.pronunciation)
+    setPhoneticQuery(normalized)
+    executePhoneticSearch(normalized)
+  }
+
+  function handlePhoneticKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (showPhoneticSuggestions && phoneticSuggestions.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault()
+        setActivePhoneticSuggestIndex((prev) => (prev + 1) % phoneticSuggestions.length)
+        return
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault()
+        setActivePhoneticSuggestIndex((prev) =>
+          prev <= 0 ? phoneticSuggestions.length - 1 : prev - 1,
+        )
+        return
+      }
+      if (
+        event.key === "Enter" &&
+        activePhoneticSuggestIndex >= 0 &&
+        activePhoneticSuggestIndex < phoneticSuggestions.length
+      ) {
+        event.preventDefault()
+        const selected = phoneticSuggestions[activePhoneticSuggestIndex]
+        selectPhoneticSuggestion(selected)
+        return
+      }
+      if (event.key === "Escape") {
+        setShowPhoneticSuggestions(false)
+        return
+      }
+    }
+    handlePhysicalKey(event)
+  }
+
   // Step entry navigation
   async function moveWordEntry(offset: -1 | 1) {
     if (!selectedWord || !wordCount) return
     const nextIndex = selectedWord.index + offset
     if (nextIndex < 1 || nextIndex > wordCount) return
 
+    setShowWordSuggestions(false)
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
@@ -197,6 +384,7 @@ export default function App() {
     const nextIndex = selectedPhonetic.index + offset
     if (nextIndex < 1 || nextIndex > phoneticCount) return
 
+    setShowPhoneticSuggestions(false)
     requestRef.current?.abort()
     const controller = new AbortController()
     requestRef.current = controller
@@ -224,58 +412,13 @@ export default function App() {
   function handleSelectPhonetic(pron: string) {
     setMode("phonetic")
     setPhoneticQuery(pron)
-
-    requestRef.current?.abort()
-    const controller = new AbortController()
-    requestRef.current = controller
-    setPhoneticState("loading")
-    setPhoneticError("")
-
-    const internalQuery = reNormalizePhonetic(pron)
-    searchPhonetic(internalQuery, controller.signal)
-      .then((result) => {
-        const normalizedPron = normalizePhonetic(result.pronunciation)
-        setSelectedPhonetic({
-          index: result.index,
-          pronunciation: normalizedPron,
-          word: result.word,
-        })
-        setPhoneticExact(result.exact)
-        setPhoneticState("ready")
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setPhoneticError(error instanceof Error ? error.message : "音标搜索失败。")
-        setPhoneticState("error")
-      })
+    executePhoneticSearch(pron)
   }
 
   // Handle clicking a word link tag (synonym, antonym, or related word): search word directly
   function handleSelectWord(wordToSearch: string) {
     setWordQuery(wordToSearch)
-
-    requestRef.current?.abort()
-    const controller = new AbortController()
-    requestRef.current = controller
-    setWordState("loading")
-    setWordError("")
-
-    searchWord(wordToSearch, controller.signal)
-      .then((result) => {
-        setSelectedWord({
-          index: result.index,
-          word: result.word,
-          simple_meaning: result.simple_meaning,
-          detail_meaning: result.detail_meaning,
-        })
-        setWordExact(result.exact)
-        setWordState("ready")
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return
-        setWordError(error instanceof Error ? error.message : "单词搜索失败。")
-        setWordState("error")
-      })
+    executeWordSearch(wordToSearch)
   }
 
   const isConnected = wordCount !== null || phoneticCount !== null
@@ -374,42 +517,83 @@ export default function App() {
                   onSubmit={handleWordSearch}
                 >
                   <label className="sr-only" htmlFor="word-query">单词查询</label>
-                  <div className="search-input-wrap">
-                    <Search className="input-sound-icon" size={19} />
-                    <input
-                      ref={wordInputRef}
-                      id="word-query"
-                      className="word-input"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={wordQuery}
-                      onChange={(event) => setWordQuery(event.target.value)}
-                      placeholder="输入要查询的单词，例如：apple, book, computer"
-                      aria-describedby="word-input-help"
-                    />
-                    {wordQuery && (
-                      <button
-                        className="clear-button"
-                        type="button"
-                        onClick={() => {
-                          setWordQuery("")
-                          setWordState("idle")
-                          setWordError("")
-                          wordInputRef.current?.focus()
+                  <div className="search-input-container" ref={wordContainerRef}>
+                    <div className="search-input-wrap">
+                      <Search className="input-sound-icon" size={19} />
+                      <input
+                        ref={wordInputRef}
+                        id="word-query"
+                        className="word-input"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={wordQuery}
+                        onChange={(event) => setWordQuery(event.target.value)}
+                        onFocus={() => {
+                          if (wordSuggestions.length > 0 && wordQuery.trim()) {
+                            setShowWordSuggestions(true)
+                          }
                         }}
-                        aria-label="清空输入"
-                      >
-                        清空
-                      </button>
+                        onKeyDown={handleWordKeyDown}
+                        placeholder="输入要查询的单词，例如：apple, book, computer"
+                        aria-describedby="word-input-help"
+                        aria-autocomplete="list"
+                        aria-expanded={showWordSuggestions}
+                      />
+                      {wordQuery && (
+                        <button
+                          className="clear-button"
+                          type="button"
+                          onClick={() => {
+                            setWordQuery("")
+                            setWordState("idle")
+                            setWordError("")
+                            setWordSuggestions([])
+                            setShowWordSuggestions(false)
+                            wordInputRef.current?.focus()
+                          }}
+                          aria-label="清空输入"
+                        >
+                          清空
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Word Suggestions Dropdown */}
+                    {showWordSuggestions && wordSuggestions.length > 0 && (
+                      <ul className="suggestions-dropdown" role="listbox">
+                        {wordSuggestions.map((item, idx) => (
+                          <li
+                            key={`${item.index}-${item.word}`}
+                            role="option"
+                            aria-selected={idx === activeWordSuggestIndex}
+                            className={`suggestion-item ${
+                              idx === activeWordSuggestIndex ? "active" : ""
+                            }`}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              selectWordSuggestion(item.word)
+                            }}
+                          >
+                            <div className="suggestion-word-row">
+                              <Search size={13} className="suggestion-icon" />
+                              <span className="suggestion-word">{item.word}</span>
+                              {item.meaning && (
+                                <span className="suggestion-meaning">{item.meaning}</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
+
                   <button className="search-button" type="submit" disabled={wordState === "loading"}>
                     <Search size={17} />
                     {wordState === "loading" ? "查询中…" : "搜索单词"}
                   </button>
                 </form>
                 <div className="search-footnote" id="word-input-help">
-                  <span>回车或点击按钮即可搜索；支持不区分大小写。</span>
+                  <span>支持输入前缀自动弹出候选单词，可用方向键 ↑ / ↓ 快速选择。</span>
                 </div>
               </section>
 
@@ -531,36 +715,77 @@ export default function App() {
                   onSubmit={handlePhoneticSearch}
                 >
                   <label className="sr-only" htmlFor="phonetic-query">音标查询</label>
-                  <div className="search-input-wrap">
-                    <Volume2 className="input-sound-icon" size={19} />
-                    <input
-                      ref={phoneticInputRef}
-                      id="phonetic-query"
-                      className="phonetic-input"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={phoneticQuery}
-                      onChange={(event) => setPhoneticQuery(event.target.value)}
-                      onKeyDown={handlePhysicalKey}
-                      placeholder="例如：iːˌæŋwɪn"
-                      aria-describedby="phonetic-input-help"
-                    />
-                    {phoneticQuery && (
-                      <button
-                        className="clear-button"
-                        type="button"
-                        onClick={() => {
-                          setPhoneticQuery("")
-                          setPhoneticState("idle")
-                          setPhoneticError("")
-                          phoneticInputRef.current?.focus()
+                  <div className="search-input-container" ref={phoneticContainerRef}>
+                    <div className="search-input-wrap">
+                      <Volume2 className="input-sound-icon" size={19} />
+                      <input
+                        ref={phoneticInputRef}
+                        id="phonetic-query"
+                        className="phonetic-input"
+                        autoComplete="off"
+                        spellCheck={false}
+                        value={phoneticQuery}
+                        onChange={(event) => setPhoneticQuery(event.target.value)}
+                        onFocus={() => {
+                          if (phoneticSuggestions.length > 0 && phoneticQuery.trim()) {
+                            setShowPhoneticSuggestions(true)
+                          }
                         }}
-                        aria-label="清空输入"
-                      >
-                        清空
-                      </button>
+                        onKeyDown={handlePhoneticKeyDown}
+                        placeholder="例如：iːˌæŋwɪn"
+                        aria-describedby="phonetic-input-help"
+                        aria-autocomplete="list"
+                        aria-expanded={showPhoneticSuggestions}
+                      />
+                      {phoneticQuery && (
+                        <button
+                          className="clear-button"
+                          type="button"
+                          onClick={() => {
+                            setPhoneticQuery("")
+                            setPhoneticState("idle")
+                            setPhoneticError("")
+                            setPhoneticSuggestions([])
+                            setShowPhoneticSuggestions(false)
+                            phoneticInputRef.current?.focus()
+                          }}
+                          aria-label="清空输入"
+                        >
+                          清空
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Phonetic Suggestions Dropdown */}
+                    {showPhoneticSuggestions && phoneticSuggestions.length > 0 && (
+                      <ul className="suggestions-dropdown" role="listbox">
+                        {phoneticSuggestions.map((item, idx) => {
+                          const normalized = normalizePhonetic(item.pronunciation)
+                          return (
+                            <li
+                              key={`${item.index}-${item.pronunciation}`}
+                              role="option"
+                              aria-selected={idx === activePhoneticSuggestIndex}
+                              className={`suggestion-item ${
+                                idx === activePhoneticSuggestIndex ? "active" : ""
+                              }`}
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                selectPhoneticSuggestion(item)
+                              }}
+                            >
+                              <div className="suggestion-phonetic-row">
+                                <Volume2 size={13} className="suggestion-icon" />
+                                <span className="suggestion-phonetic">[{normalized}]</span>
+                                <span className="suggestion-phonetic-word">{item.word}</span>
+                              </div>
+                            </li>
+                          )
+                        })}
+                      </ul>
                     )}
                   </div>
+
                   <button className="search-button" type="submit" disabled={phoneticState === "loading"}>
                     <Search size={17} />
                     {phoneticState === "loading" ? "查询中…" : "查询音标"}

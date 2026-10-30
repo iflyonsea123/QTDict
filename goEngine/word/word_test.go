@@ -85,4 +85,22 @@ func TestWordIndexAndDefinitions(t *testing.T) {
 	if _, ok := idx.EntryAt(expectedCount + 1); ok {
 		t.Fatal("entry expectedCount+1 should be invalid")
 	}
+
+	// Test Suggest
+	suggestions := idx.Suggest("app", 5)
+	if len(suggestions) == 0 {
+		t.Fatal("expected suggestions for 'app' to not be empty")
+	}
+	foundApple := false
+	for _, s := range suggestions {
+		if strings.EqualFold(s.Word, "apple") {
+			foundApple = true
+			if !strings.Contains(s.Meaning, "苹果") {
+				t.Fatalf("expected suggestion apple to contain '苹果' in preview, got: %s", s.Meaning)
+			}
+		}
+	}
+	if !foundApple {
+		t.Logf("suggestions for 'app': %+v", suggestions)
+	}
 }

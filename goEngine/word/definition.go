@@ -3,6 +3,7 @@ package word
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 type DefinitionStore struct {
@@ -62,6 +63,40 @@ func (store *DefinitionStore) SimpleMeaning(offset int) string {
 		return ""
 	}
 	return DecodeGB18030(store.simpleData[contentOffset : contentOffset+length])
+}
+
+// SimplePreview extracts a clean, concise plain-text summary suitable for dropdown suggestions.
+func (store *DefinitionStore) SimplePreview(offset int) string {
+	if store == nil || offset < 0 {
+		return ""
+	}
+	raw := store.SimpleMeaning(offset)
+	return cleanPreview(raw)
+}
+
+func cleanPreview(raw string) string {
+	// Remove phonetic block @[...]
+	for {
+		start := strings.Index(raw, "@[")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(raw[start:], "]")
+		if end < 0 {
+			break
+		}
+		raw = raw[:start] + raw[start+end+1:]
+	}
+	raw = strings.ReplaceAll(raw, "$", " ")
+	raw = strings.ReplaceAll(raw, "^", " ")
+	raw = strings.ReplaceAll(raw, "&", " ")
+	fields := strings.Fields(raw)
+	cleaned := strings.Join(fields, " ")
+	runes := []rune(cleaned)
+	if len(runes) > 40 {
+		return string(runes[:40]) + "..."
+	}
+	return cleaned
 }
 
 func (store *DefinitionStore) DetailMeaning(offset int) string {

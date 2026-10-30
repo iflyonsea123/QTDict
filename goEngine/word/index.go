@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 const (
@@ -14,6 +15,12 @@ const (
 	alphabetIndexCount     = 28
 	firstWordOffset        = wordIndexHeaderSize + alphabetIndexEntrySize*alphabetIndexCount // 232
 )
+
+type WordSuggestion struct {
+	Index   int    `json:"index"`
+	Word    string `json:"word"`
+	Meaning string `json:"meaning,omitempty"`
+}
 
 type Entry struct {
 	Index         int    `json:"index"`
@@ -222,6 +229,79 @@ func (index *Index) Search(query string) (SearchResult, bool) {
 		Entry: index.entryAtRow(row),
 		Exact: exact,
 	}, true
+}
+
+func (index *Index) Suggest(query string, limit int) []WordSuggestion {
+	if len(index.records) == 0 || query == "" || limit <= 0 {
+		return nil
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	for i := 0; i < len(query); i++ {
+		if query[i] > 0x7f {
+			return nil
+		}
+	}
+
+	queryBytes := []byte(query)
+	first, last := 0, len(index.records)
+	for first < last {
+		middle := first + (last-first)/2
+		rec := index.records[middle]
+		wordBytes := index.data[rec.wordStart:rec.wordEnd]
+		if compareWords(wordBytes, queryBytes) < 0 {
+			first = middle + 1
+		} else {
+			last = middle
+		}
+	}
+
+	lowerQuery := strings.ToLower(query)
+	results := make([]WordSuggestion, 0, limit)
+
+	// Collect prefix matches starting from first
+	row := first
+	for row < len(index.records) && len(results) < limit {
+		rec := index.records[row]
+		word := string(index.data[rec.wordStart:rec.wordEnd])
+		if !strings.HasPrefix(strings.ToLower(word), lowerQuery) {
+			break
+		}
+		meaning := ""
+		if index.definitions != nil && rec.simpleOffset >= 0 {
+			meaning = index.definitions.SimplePreview(rec.simpleOffset)
+		}
+		results = append(results, WordSuggestion{
+			Index:   row + 1,
+			Word:    word,
+			Meaning: meaning,
+		})
+		row++
+	}
+
+	// If no exact prefix matches found, fall back to nearest candidates
+	if len(results) == 0 {
+		startRow := first
+		if startRow >= len(index.records) {
+			startRow = len(index.records) - 1
+		}
+		for r := startRow; r < len(index.records) && len(results) < limit; r++ {
+			rec := index.records[r]
+			word := string(index.data[rec.wordStart:rec.wordEnd])
+			meaning := ""
+			if index.definitions != nil && rec.simpleOffset >= 0 {
+				meaning = index.definitions.SimplePreview(rec.simpleOffset)
+			}
+			results = append(results, WordSuggestion{
+				Index:   r + 1,
+				Word:    word,
+				Meaning: meaning,
+			})
+		}
+	}
+
+	return results
 }
 
 func compareWords(left, right []byte) int {

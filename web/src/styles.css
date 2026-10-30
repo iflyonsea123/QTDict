@@ -383,6 +383,13 @@ button.nav-link:hover {
   margin-top: 22px;
 }
 
+.search-input-container {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
 .search-input-wrap {
   display: flex;
   min-width: 0;
@@ -453,6 +460,98 @@ button.nav-link:hover {
 .clear-button:hover {
   background: #eef1f6;
   color: var(--text);
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #dce4f2;
+  border-radius: 12px;
+  box-shadow:
+    0 10px 25px -5px rgb(15 23 42 / 12%),
+    0 8px 10px -6px rgb(15 23 42 / 8%);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background: #edf3ff;
+}
+
+.suggestion-item.active .suggestion-word,
+.suggestion-item:hover .suggestion-word {
+  color: #1d4ed8;
+}
+
+.suggestion-item.active .suggestion-phonetic,
+.suggestion-item:hover .suggestion-phonetic {
+  color: #1d4ed8;
+}
+
+.suggestion-word-row,
+.suggestion-phonetic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.suggestion-icon {
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+
+.suggestion-word {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1e293b;
+  flex: 0 0 auto;
+}
+
+.suggestion-meaning {
+  font-size: 12px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-left: 6px;
+}
+
+.suggestion-phonetic {
+  font-family: "Segoe UI", "Lucida Sans Unicode", "Arial Unicode MS", -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: #2b56ca;
+  flex: 0 0 auto;
+}
+
+.suggestion-phonetic-word {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 .search-button {

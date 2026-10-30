@@ -218,6 +218,49 @@ func (index *Index) Search(query string, includeSyllableMarks bool) (SearchResul
 	return SearchResult{Entry: index.entryAtRow(first), Exact: false}, true
 }
 
+type PhoneticSuggestion struct {
+	Index         int    `json:"index"`
+	Pronunciation string `json:"pronunciation"`
+	Word          string `json:"word"`
+}
+
+func (index *Index) Suggest(query string, limit int) []PhoneticSuggestion {
+	if len(index.records) == 0 || query == "" || limit <= 0 {
+		return nil
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	queryBytes := []byte(query)
+
+	first, last := 0, len(index.records)
+	for first < last {
+		middle := first + (last-first)/2
+		record := index.records[middle]
+		pronunciation := index.data[record.pronunciationStart:record.pronunciationEnd]
+		if comparePronunciations(queryBytes, pronunciation, false) > 0 {
+			first = middle + 1
+		} else {
+			last = middle
+		}
+	}
+
+	if first >= len(index.records) {
+		first = len(index.records) - 1
+	}
+
+	results := make([]PhoneticSuggestion, 0, limit)
+	for row := first; row < len(index.records) && len(results) < limit; row++ {
+		record := index.records[row]
+		results = append(results, PhoneticSuggestion{
+			Index:         row + 1,
+			Pronunciation: string(index.data[record.pronunciationStart:record.pronunciationEnd]),
+			Word:          string(index.data[record.wordStart:record.wordEnd]),
+		})
+	}
+	return results
+}
+
 func comparePronunciations(left, right []byte, includeSyllableMarks bool) int {
 	leftOffset, rightOffset := 0, 0
 	for {

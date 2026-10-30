@@ -54,6 +54,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		}{Count: handler.phoneticIndex.Count()})
 	case request.URL.Path == "/api/phonetic/search":
 		handler.searchPhonetic(writer, request)
+	case request.URL.Path == "/api/phonetic/suggest":
+		handler.suggestPhonetic(writer, request)
 	case strings.HasPrefix(request.URL.Path, "/api/phonetic/entries/"):
 		handler.phoneticEntry(writer, request.URL.Path)
 	case request.URL.Path == "/api/word/count":
@@ -66,6 +68,8 @@ func (handler *Handler) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 		}{Count: handler.wordIndex.Count()})
 	case request.URL.Path == "/api/word/search":
 		handler.searchWord(writer, request)
+	case request.URL.Path == "/api/word/suggest":
+		handler.suggestWord(writer, request)
 	case strings.HasPrefix(request.URL.Path, "/api/word/entries/"):
 		handler.wordEntry(writer, request.URL.Path)
 	default:
@@ -115,6 +119,33 @@ func (handler *Handler) searchPhonetic(writer http.ResponseWriter, request *http
 		return
 	}
 	writeJSON(writer, http.StatusOK, result)
+}
+
+func (handler *Handler) suggestPhonetic(writer http.ResponseWriter, request *http.Request) {
+	if handler.phoneticIndex == nil {
+		writeError(writer, http.StatusNotFound, "phonetic index not loaded")
+		return
+	}
+	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	if query == "" {
+		writeJSON(writer, http.StatusOK, []phonetic.PhoneticSuggestion{})
+		return
+	}
+	if len(query) > 256 {
+		writeError(writer, http.StatusBadRequest, "query parameter q is too long")
+		return
+	}
+	limit := 8
+	if rawLimit := request.URL.Query().Get("limit"); rawLimit != "" {
+		if n, err := strconv.Atoi(rawLimit); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+	suggestions := handler.phoneticIndex.Suggest(query, limit)
+	if suggestions == nil {
+		suggestions = []phonetic.PhoneticSuggestion{}
+	}
+	writeJSON(writer, http.StatusOK, suggestions)
 }
 
 func (handler *Handler) phoneticEntry(writer http.ResponseWriter, path string) {
@@ -167,6 +198,33 @@ func (handler *Handler) searchWord(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	writeJSON(writer, http.StatusOK, result)
+}
+
+func (handler *Handler) suggestWord(writer http.ResponseWriter, request *http.Request) {
+	if handler.wordIndex == nil {
+		writeError(writer, http.StatusNotFound, "word index not loaded")
+		return
+	}
+	query := strings.TrimSpace(request.URL.Query().Get("q"))
+	if query == "" {
+		writeJSON(writer, http.StatusOK, []word.WordSuggestion{})
+		return
+	}
+	if len(query) > 256 {
+		writeError(writer, http.StatusBadRequest, "query parameter q is too long")
+		return
+	}
+	limit := 8
+	if rawLimit := request.URL.Query().Get("limit"); rawLimit != "" {
+		if n, err := strconv.Atoi(rawLimit); err == nil && n > 0 && n <= 50 {
+			limit = n
+		}
+	}
+	suggestions := handler.wordIndex.Suggest(query, limit)
+	if suggestions == nil {
+		suggestions = []word.WordSuggestion{}
+	}
+	writeJSON(writer, http.StatusOK, suggestions)
 }
 
 func (handler *Handler) wordEntry(writer http.ResponseWriter, path string) {

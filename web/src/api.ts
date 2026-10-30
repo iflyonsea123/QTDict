@@ -19,6 +19,18 @@ export interface WordSearchResult extends WordEntry {
   exact: boolean
 }
 
+export interface WordSuggestion {
+  index: number
+  word: string
+  meaning?: string
+}
+
+export interface PhoneticSuggestion {
+  index: number
+  pronunciation: string
+  word: string
+}
+
 async function request(path: string, signal?: AbortSignal): Promise<unknown> {
   let response: Response
   try {
@@ -146,4 +158,44 @@ export async function searchWord(query: string, signal?: AbortSignal): Promise<W
     throw new Error("词典服务返回的搜索结果格式无效。")
   }
   return { ...entry, exact: result.exact } satisfies WordSearchResult
+}
+
+export async function suggestWords(
+  query: string,
+  limit = 8,
+  signal?: AbortSignal,
+): Promise<WordSuggestion[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
+  const result = await request(`/api/word/suggest?${params.toString()}`, signal)
+  if (!Array.isArray(result)) return []
+  return result.map((item) => {
+    if (!isRecord(item)) {
+      return { index: 0, word: "" }
+    }
+    return {
+      index: typeof item.index === "number" ? item.index : 0,
+      word: typeof item.word === "string" ? item.word : "",
+      meaning: typeof item.meaning === "string" ? item.meaning : undefined,
+    }
+  })
+}
+
+export async function suggestPhonetics(
+  query: string,
+  limit = 8,
+  signal?: AbortSignal,
+): Promise<PhoneticSuggestion[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) })
+  const result = await request(`/api/phonetic/suggest?${params.toString()}`, signal)
+  if (!Array.isArray(result)) return []
+  return result.map((item) => {
+    if (!isRecord(item)) {
+      return { index: 0, pronunciation: "", word: "" }
+    }
+    return {
+      index: typeof item.index === "number" ? item.index : 0,
+      pronunciation: typeof item.pronunciation === "string" ? item.pronunciation : "",
+      word: typeof item.word === "string" ? item.word : "",
+    }
+  })
 }

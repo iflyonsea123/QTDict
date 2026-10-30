@@ -45,8 +45,10 @@ go run . -config config.json
 - `GET /api/phonetic/entries/{index}` returns one entry (1-based index).
 - `GET /api/phonetic/search?q={phonetic}` searches using legacy phonetic sort rules and returns the nearest entry with an `exact` flag.
   - Add `includeSyllableMarks=true` for strict syllable-marker matching.
+- `GET /api/phonetic/suggest?q={prefix}&limit={n}` returns candidate phonetic entries for auto-completion.
 
 ### Word Endpoints
 - `GET /api/word/count` returns `{"count":493062}`.
 - `GET /api/word/entries/{index}` returns one word entry with simple and detail definitions (1-based index).
 - `GET /api/word/search?q={word}` searches using legacy word dictionary sort rules and returns the nearest entry with `exact`, `simple_meaning`, and `detail_meaning`.
+- `GET /api/word/suggest?q={prefix}&limit={n}` returns matching candidate words and plain-text meaning previews for auto-completion.

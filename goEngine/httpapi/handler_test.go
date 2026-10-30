@@ -174,4 +174,19 @@ func TestWordHTTPAPILoaded(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
+
+	// 4. /api/word/suggest?q=test
+	req = httptest.NewRequest(http.MethodGet, "/api/word/suggest?q=test", nil)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	var suggests []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &suggests); err != nil {
+		t.Fatalf("unmarshal suggest json: %v", err)
+	}
+	if len(suggests) == 0 || suggests[0]["word"] != "testword" {
+		t.Fatalf("unexpected word suggestions: %+v", suggests)
+	}
 }
